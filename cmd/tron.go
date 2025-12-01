@@ -26,7 +26,7 @@ func Initialize(rpcUrl, key string) {
 }
 
 func TransferTrc20(senderAddress string, receiverAddress, USDTTronContract string, fromPrivateKey []byte, amountTransfer *big.Int) (txid string, err error) {
-	tx, err := Client.TransferTrc20(senderAddress, receiverAddress, USDTTronContract, amountTransfer, 50000000)
+	tx, err := Client.TransferTrc20(senderAddress, receiverAddress, USDTTronContract, amountTransfer, 5000000)
 	if err != nil {
 		return "", err
 	}
@@ -57,11 +57,15 @@ func main() {
 	} // private key wallet address same sequence
 
 	targets := []string{
+		// "TPoLuivbLuoqLRVY4iKgzJtavjYL4UneHx", // rayan SFP dev
 		// "TAACVBRdm9gk1Mr1pUPBtUixwrnrznctLt", // sfp dev pannu
 		// "TWXdYbDufhifkBJsctuuWEoRWkZwMJvKV9", // wsvip dev pannu
-		// "TLZHbLZ68R13hXta5VrzTcUawGp9pjfZxd", // pannu wsvip uat
 		// "TUXCNvZoYBo5bHjHuf8bFZr4kBe5WLtXqn", // rayan wsvip dev
-		"TJd5xZCMqahRa74T9r9YfWiyjKAFqdGED5", // rayan SFP dev
+		// "TLZHbLZ68R13hXta5VrzTcUawGp9pjfZxd", // pannu wsvip uat
+		"TUXCNvZoYBo5bHjHuf8bFZr4kBe5WLtXqn",
+		"TJFKsm5FKK619jLdvSg4HENtRYtL8iYS9w",
+		"TJxifiPjmkbcNnB2VRsHfhm3qZYehtUBCk",
+
 	} // reciepient wallet address list
 	// targets := []string{
 	// 	"TLBhRbMuFyVc1FSLLQ5MeyeWTepKHGMrML",
@@ -69,8 +73,8 @@ func main() {
 	// } // my cds
 
 	contractAddr := "TXLAQ63Xg1NAzckPwKHvzw7CSEmLMEqcdj" // usdt contract address
-	loopCount := 10                                      // loop count
-	delay := 150 * time.Millisecond                      // delay time between each loop
+	loopCount := 2                                       // loop count
+	delay := 100 * time.Millisecond                      // delay time between each loop
 	minAmount := 3.0                                     // min transaction amount
 	maxAmount := 10.0                                    // max transaction amount
 	maxGoroutines := 10                                  // concurrency
@@ -88,9 +92,9 @@ func main() {
 
 				var fromAddr, pk string
 				// if j%2 == 0 {
-				// 	fromAddr, pk = addresses[0], privateKeys[0]
-				// } else {
 				// 	fromAddr, pk = addresses[1], privateKeys[1]
+				// } else {
+				// 	fromAddr, pk = addresses[0], privateKeys[0]
 				// }
 				fromAddr, pk = addresses[0], privateKeys[0]
 				random := rand.New(rand.NewSource(time.Now().UnixNano()))
