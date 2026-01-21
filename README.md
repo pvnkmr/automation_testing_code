@@ -74,6 +74,8 @@ npm run bacc-all
 
 npm run pwa 
 
+go run cmd/tron.go
+
 ---
 
 > Built with ❤️ using Playwright for high-confidence automation testing.
