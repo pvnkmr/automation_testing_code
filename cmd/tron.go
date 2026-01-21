@@ -62,9 +62,9 @@ func main() {
 		// "TWXdYbDufhifkBJsctuuWEoRWkZwMJvKV9", // wsvip dev pannu
 		// "TUXCNvZoYBo5bHjHuf8bFZr4kBe5WLtXqn", // rayan wsvip dev
 		// "TLZHbLZ68R13hXta5VrzTcUawGp9pjfZxd", // pannu wsvip uat
-		"TUXCNvZoYBo5bHjHuf8bFZr4kBe5WLtXqn",
-		"TJFKsm5FKK619jLdvSg4HENtRYtL8iYS9w",
-		"TJxifiPjmkbcNnB2VRsHfhm3qZYehtUBCk",
+		//"TUXCNvZoYBo5bHjHuf8bFZr4kBe5WLtXqn",
+		//"TJFKsm5FKK619jLdvSg4HENtRYtL8iYS9w",
+		//"TJxifiPjmkbcNnB2VRsHfhm3qZYehtUBCk",
 
 	} // reciepient wallet address list
 	// targets := []string{

@@ -1,0 +1,35 @@
+{
+  "name": "playwright",
+  "version": "1.0.0",
+  "description": "Automated tests using Playwright",
+  "main": "index.js",
+  "scripts": {
+    "dt-all": "npx playwright test \"./tests/dt-bacc/all/all.spec.js\" --headed",
+    "dt-banker": "npx playwright test \"./tests/dt-bacc/banker/banker.spec.js\" --headed",
+    "dt-player": "npx playwright test \"./tests/dt-bacc/player/player.spec.js\" --headed",
+    "dt-tie": "npx playwright test \"./tests/dt-bacc/tie/tie.spec.js\" --headed",
+    "dt-st": "npx playwright test \"./tests/dt-bacc/tiger/small.spec.js\" --headed",
+    "dt-bt": "npx playwright test \"./tests/dt-bacc/tiger/big.spec.js\" --headed",
+    "dt-dt": "npx playwright test \"./tests/dt-bacc/dragon-tiger/dt.spec.js\" --headed",
+    "dt-sd": "npx playwright test \"./tests/dt-bacc/dragon/small.spec.js\" --headed",
+    "dt-bd": "npx playwright test \"./tests/dt-bacc/dragon/big.spec.js\" --headed",
+    "bacc-all": "npx playwright test \"./tests/bacc/all/all.spec.js\" --headed",
+    "bacc-banker": "npx playwright test \"./tests/bacc/banker/banker.spec.js\" --headed",
+    "bacc-player": "npx playwright test \"./tests/bacc/player/player.spec.js\" --headed",
+    "bacc-tie": "npx playwright test \"./tests/bacc/tie/tie.spec.js\" --headed",
+    "bacc-tt": "npx playwright test \"./tests/bacc/tt/tt.spec.js\" --headed",
+    "bacc-st": "npx playwright test \"./tests/bacc/tiger/small.spec.js\" --headed",
+    "bacc-bt": "npx playwright test \"./tests/bacc/tiger/big.spec.js\" --headed",
+    "pwa": "npx playwright test \"./tests/PWA_WSVIP/pwafull.spec.js\" --headed"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.52.0",
+    "@types/node": "^22.15.17"
+  },
+  "dependencies": {
+    "dotenv": "^16.5.0"
+  }
+}
