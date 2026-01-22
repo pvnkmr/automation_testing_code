@@ -20,7 +20,7 @@ Install dependencies:
 
 npm install
 
-yarn playwright install (or) npx playwright install
+npm init playwright@latest
 
 ---
 
