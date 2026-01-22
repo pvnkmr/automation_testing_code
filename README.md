@@ -20,7 +20,13 @@ Install dependencies:
 
 npm install
 
+If you are starting a new Playwright project
+
 npm init playwright@latest
+
+If the project already exists (e.g., cloned from Git)
+
+npx playwright install
 
 ---
 
