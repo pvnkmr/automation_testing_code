@@ -27,7 +27,122 @@ async function timedRequest(request, method, url, options = {}) {
   else if (method === 'POST') res = await request.post(url, options);
   else res = await request.fetch(url, Object.assign({ method }, options));
   const ms = Date.now() - start;
+  // If response exceeded threshold, record it
+  try {
+    await recordSlowApiIfNeeded(method, url, ms);
+    await recordFastApiIfNeeded(method, url, ms);
+  } catch (e) {
+    console.log('failed to record slow api', e);
+  }
   return { res, ms };
+}
+
+// ----- Slow API tracking -----
+// Configurable threshold in milliseconds. Set to 100 (ms) by default.
+const SLOW_API_THRESHOLD_MS = 100;
+const SLOW_APIS_PATH = path.resolve(process.cwd(), 'tests', 'api_tests', 'slow_apis.json');
+
+// Ensure slow_apis.json exists and return parsed array
+function readSlowApis() {
+  try {
+    if (!fs.existsSync(path.dirname(SLOW_APIS_PATH))) fs.mkdirSync(path.dirname(SLOW_APIS_PATH), { recursive: true });
+    if (!fs.existsSync(SLOW_APIS_PATH)) {
+      fs.writeFileSync(SLOW_APIS_PATH, JSON.stringify([]));
+      return [];
+    }
+    const txt = fs.readFileSync(SLOW_APIS_PATH, 'utf8');
+    return JSON.parse(txt || '[]');
+  } catch (e) {
+    return [];
+  }
+}
+
+// Write updated slow APIs array to file
+function writeSlowApis(list) {
+  try {
+    fs.writeFileSync(SLOW_APIS_PATH, JSON.stringify(list, null, 2), 'utf8');
+  } catch (e) {
+    console.log('failed to write slow apis file', e);
+  }
+}
+
+// If an API call took >= threshold ms, update `slow_apis.json` with last_ms and timestamp.
+async function recordSlowApiIfNeeded(method, url, ms) {
+  if (typeof ms !== 'number') return;
+  if (ms < SLOW_API_THRESHOLD_MS) return;
+  const list = readSlowApis();
+  const key = `${method.toUpperCase()} ${url}`;
+  const now = formatTimestamp(new Date());
+  const idx = list.findIndex(i => i.key === key);
+  if (idx >= 0) {
+    // update existing entry
+    list[idx].last_ms = ms;
+    list[idx].last_seen = now;
+    list[idx].count = (list[idx].count || 0) + 1;
+  } else {
+    list.push({ key, method: method.toUpperCase(), url, last_ms: ms, first_seen: now, last_seen: now, count: 1 });
+  }
+  writeSlowApis(list);
+}
+
+// ----- Fast API tracking -----
+// Track APIs that respond faster than the fast threshold (ms).
+const FAST_API_THRESHOLD_MS = 100; // change if you want a different cutoff
+const FAST_APIS_PATH = path.resolve(process.cwd(), 'tests', 'api_tests', 'fast_apis.json');
+
+// Initialize API log files for a fresh run: overwrite previous data with empty arrays.
+function initApiLogs() {
+  try {
+    const dir = path.dirname(FAST_APIS_PATH);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(FAST_APIS_PATH, JSON.stringify([]), 'utf8');
+    fs.writeFileSync(SLOW_APIS_PATH, JSON.stringify([]), 'utf8');
+  } catch (e) {
+    console.log('failed to initialize api log files', e);
+  }
+}
+
+// run initialization once at module load so each test run starts fresh
+initApiLogs();
+
+function readFastApis() {
+  try {
+    if (!fs.existsSync(path.dirname(FAST_APIS_PATH))) fs.mkdirSync(path.dirname(FAST_APIS_PATH), { recursive: true });
+    if (!fs.existsSync(FAST_APIS_PATH)) {
+      fs.writeFileSync(FAST_APIS_PATH, JSON.stringify([]));
+      return [];
+    }
+    const txt = fs.readFileSync(FAST_APIS_PATH, 'utf8');
+    return JSON.parse(txt || '[]');
+  } catch (e) {
+    return [];
+  }
+}
+
+function writeFastApis(list) {
+  try {
+    fs.writeFileSync(FAST_APIS_PATH, JSON.stringify(list, null, 2), 'utf8');
+  } catch (e) {
+    console.log('failed to write fast apis file', e);
+  }
+}
+
+// Record APIs that are faster than the fast threshold. Keeps count and timestamps.
+async function recordFastApiIfNeeded(method, url, ms) {
+  if (typeof ms !== 'number') return;
+  if (ms > FAST_API_THRESHOLD_MS) return;
+  const list = readFastApis();
+  const key = `${method.toUpperCase()} ${url}`;
+  const now = formatTimestamp(new Date());
+  const idx = list.findIndex(i => i.key === key);
+  if (idx >= 0) {
+    list[idx].last_ms = ms;
+    list[idx].last_seen = now;
+    list[idx].count = (list[idx].count || 0) + 1;
+  } else {
+    list.push({ key, method: method.toUpperCase(), url, last_ms: ms, first_seen: now, last_seen: now, count: 1 });
+  }
+  writeFastApis(list);
 }
 
 // Ensure we have a valid auth token; perform login if needed and store in `auth`.
@@ -98,6 +213,18 @@ async function uploadImage(request, buffer, fileName = 'scan.png', folder = 'wat
 function pickWord() {
   const words = [ 'sun','sky','sea','tea','joy','fun','cat','dog','win','pro','max','zen','art','box','bee','fan' ];
   return words[Math.floor(Math.random() * words.length)];
+}
+
+// Format a Date into `YYYY-MM-DD HH:mm:ss` for human-friendly logs
+function formatTimestamp(d) {
+  const pad = (n) => String(n).padStart(2, '0');
+  const year = d.getFullYear();
+  const month = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const hh = pad(d.getHours());
+  const mm = pad(d.getMinutes());
+  const ss = pad(d.getSeconds());
+  return `${year}-${month}-${day} ${hh}:${mm}:${ss}`;
 }
 
 // Test: perform a simple login and store the auth token for reuse.
