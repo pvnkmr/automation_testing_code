@@ -1,21 +1,33 @@
+// Playwright test utilities and Node file helpers
 import { test } from "@playwright/test";
 import fs from 'fs';
 import path from 'path';
 
+// ----- Configuration / constants -----
+// OTP, credentials and client metadata used by the tests.
+// These are intentionally simple test values — replace as needed for other environments.
 const OTP = "000000";
 const password = "123456";
 const username = "devvip";
 const USER_TYPE = "staff_vip";
 const DEVICE_ID = "web_172.16.10.100_1234567890";
+// Base API URL for the VIP member service under test
 const BASE_URL = "http://192.168.40.95:9750/vip-member";
+
+// `auth` stores the Authorization header value after successful login
 let auth = '';
 
+// Test: perform a simple login and store the auth token for reuse.
+// This test is intentionally minimal: it demonstrates how to use Playwright's
+// `request` fixture to perform an API login and save the `Authorization` header
+// value for subsequent tests in this file.
 test("All Baccarat Flow", async ({ request }) => {
   const params = new URLSearchParams();
   params.append('username', username);
   params.append('password', password);
   params.append('code', OTP);
- 
+
+  // POST form-encoded login to receive an auth token
   const response = await request.post(`${BASE_URL}/Public/login`, {
     data: params.toString(),
     headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'userType': USER_TYPE, 'deviceId': DEVICE_ID }
@@ -25,24 +37,29 @@ test("All Baccarat Flow", async ({ request }) => {
   try {
     const json = await response.json();
     console.log('response json', json);
+    // If the login returned a token, store it in the module-scoped `auth` variable
+    // so other tests can re-use the same Authorization header.
     if (json && json.data && json.data.token) {
       auth = `${json.data.tokenType || 'Bearer '} ${json.data.token}`.trim();
       console.log('stored auth token:', auth);
     }
-    // Example of reusing the token for an authenticated request:
-    // const me = await request.get(`${BASE_URL}/Protected/endpoint`, {
-    //   headers: { Authorization: auth }
-    // });
-    // console.log('protected status', me.status());
+    // Example: you can call protected endpoints with `Authorization: auth`.
   } catch (e) {
+    // If JSON parsing fails, print raw body to help debug unexpected responses.
     const body = await response.text();
     console.log('response body', body);
   }
 });
 
+// Test: create a category using an uploaded image.
+// Steps:
+// 1. Ensure we have an auth token (call login if necessary).
+// 2. Read a local image from `tests/images/scan.png`.
+// 3. Upload the image to the server and read back the storage path.
+// 4. POST the category payload with the returned image path.
 test('Create Category With Image', async ({ request }) => {
+  // Ensure we have a stored auth token. If not, perform the same login flow.
   if (!auth) {
-    // perform login again if token not present
     const params = new URLSearchParams();
     params.append('username', username);
     params.append('password', password);
@@ -55,13 +72,14 @@ test('Create Category With Image', async ({ request }) => {
     auth = `${lj.data.tokenType || 'Bearer '} ${lj.data.token}`.trim();
   }
 
-  // use specific image `scan.png` from tests/images
+  // Find the image in the repo and read it into a buffer.
   const imagesDir = path.resolve(process.cwd(), 'tests', 'images');
   const file = 'scan.png';
   const filePath = path.resolve(imagesDir, file);
   if (!fs.existsSync(filePath)) throw new Error(`Image not found: ${filePath}`);
   const buffer = fs.readFileSync(filePath);
 
+  // Use short meaningful words for name/description to keep test data simple.
   const words = [
     'sun','sky','sea','tea','joy','fun','cat','dog','win','pro','max','zen','art','box','bee','fan'
   ];
@@ -72,11 +90,8 @@ test('Create Category With Image', async ({ request }) => {
   const serviceTypes = ['LIFESTYLE'];
   const serviceType = serviceTypes[Math.floor(Math.random() * serviceTypes.length)];
 
-  // Some servers expect the image already uploaded and receive a JSON body
-  // where `image` is the storage path (as in your curl). We'll mimic that:
-  // - choose an image file from tests/images
-  // - construct a server-storage-like path for `image`
-  // upload the image to server first and use returned storage path
+  // Upload the image. The server expects multipart form data and returns
+  // a storage path array on success (e.g. data: ["vip-member/..../img.png"]).
   console.log('Uploading image for category creation...');
   const uploadUrl = `${BASE_URL}/vip_member/uploadImage?folder=waterbar_category`;
   const uploadRes = await request.post(uploadUrl, {
@@ -94,6 +109,9 @@ test('Create Category With Image', async ({ request }) => {
     }
   });
 
+  // Parse upload response and fall back to raw binary upload if multipart
+  // didn't produce a usable storage path. If all fails, construct a
+  // best-effort storage path so the test can still proceed.
   let imageStoragePath;
   try {
     const upj = await uploadRes.json();
@@ -101,7 +119,7 @@ test('Create Category With Image', async ({ request }) => {
     if (upj && upj.code === 0 && Array.isArray(upj.data) && upj.data.length > 0) {
       imageStoragePath = upj.data[0];
     }
-    // if upload returned non-success, try raw binary upload as fallback
+    // fallback: attempt raw binary upload
     if (!imageStoragePath) {
       console.log('multipart upload did not return path; trying raw binary upload');
       const rawRes = await request.post(uploadUrl, {
@@ -128,13 +146,13 @@ test('Create Category With Image', async ({ request }) => {
     console.log('upload parse error', e);
   }
 
-  // fallback: construct a path if upload didn't return one (best-effort)
+  // Final fallback to avoid blocking the test entirely if upload failed.
   if (!imageStoragePath) {
     imageStoragePath = `vip-member/waterbar_category/${path.parse(file).name}_${Date.now()}${path.extname(file)}`;
   }
 
+  // Create a category using the (uploaded) image path.
   const payload = { name, description, status, image: imageStoragePath, serviceType };
-
   const res = await request.post(`${BASE_URL}/categories`, {
     data: JSON.stringify(payload),
     headers: {
@@ -150,6 +168,7 @@ test('Create Category With Image', async ({ request }) => {
     }
   });
 
+  // Log server response to aid debugging when tests fail.
   console.log('create status', res.status());
   try {
     const body = await res.json();
@@ -159,10 +178,13 @@ test('Create Category With Image', async ({ request }) => {
   }
 });
 
+// Test: update an existing category. This shows a PATCH request with
+// JSON body and how to reuse an uploaded image path similar to the create test.
 test('Update Category', async ({ request }) => {
   // change this to the categoryId you want to update
   const categoryId = 130;
 
+  // Ensure authentication
   if (!auth) {
     const params = new URLSearchParams();
     params.append('username', username);
@@ -176,7 +198,7 @@ test('Update Category', async ({ request }) => {
     auth = `${lj.data.tokenType || 'Bearer '} ${lj.data.token}`.trim();
   }
 
-  // upload image and get storage path (reuse scan.png)
+  // Reuse local `scan.png` image, upload it and obtain a storage path.
   const imagesDir = path.resolve(process.cwd(), 'tests', 'images');
   const file = 'scan.png';
   const filePath = path.resolve(imagesDir, file);
@@ -205,8 +227,10 @@ test('Update Category', async ({ request }) => {
   } catch (e) {
     console.log('upload parse error', e);
   }
+  // Fallback path construction to keep the test resilient.
   if (!imageStoragePath) imageStoragePath = `vip-member/waterbar_category/${path.parse(file).name}_${Date.now()}${path.extname(file)}`;
 
+  // Build a minimal update payload using short words for readability.
   const words = [ 'sun','sky','sea','tea','joy','fun','cat','dog','win','pro','max','zen','art','box','bee','fan' ];
   const pick = () => words[Math.floor(Math.random() * words.length)];
   const name = pick();
@@ -220,6 +244,7 @@ test('Update Category', async ({ request }) => {
     serviceType: 'LIFESTYLE'
   };
 
+  // PATCH the category endpoint using the query param categoryId
   const res = await request.fetch(`${BASE_URL}/categories/update?categoryId=${categoryId}`, {
     method: 'PATCH',
     data: JSON.stringify(payload),
@@ -243,4 +268,76 @@ test('Update Category', async ({ request }) => {
   } catch (e) {
     console.log('update response text', await res.text());
   }
+});
+
+test('Delete First Announcement From List', async ({ request }) => {
+  if (!auth) {
+    const params = new URLSearchParams();
+    params.append('username', username);
+    params.append('password', password);
+    params.append('code', OTP);
+    const login = await request.post(`${BASE_URL}/Public/login`, {
+      data: params.toString(),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'userType': USER_TYPE, 'deviceId': DEVICE_ID }
+    });
+    const lj = await login.json();
+    auth = `${lj.data.tokenType || 'Bearer '} ${lj.data.token}`.trim();
+  }
+  // call announcement getList (pick first record)
+  const listUrl = `${BASE_URL}/announcement/getList?title=&status=&announceType=&startDate=&endDate=&offset=0&limit=10`;
+  const listRes = await request.get(listUrl, {
+    headers: {
+      Authorization: auth,
+      deviceId: DEVICE_ID,
+      lang: 'zh',
+      userType: USER_TYPE,
+      Origin: 'http://192.168.40.95:8090',
+      Referer: 'http://192.168.40.95:8090/',
+      Accept: 'application/json, text/plain, */*'
+    }
+  });
+
+  const listJson = await listRes.json().catch(async () => ({ raw: await listRes.text(), status: listRes.status() }));
+  console.log('announcement list response', listJson);
+
+  // extract first record from common shapes
+  let first = null;
+  if (Array.isArray(listJson)) first = listJson[0];
+  if (!first && listJson && typeof listJson === 'object') {
+    if (Array.isArray(listJson.data)) first = listJson.data[0];
+    if (!first && listJson.data && Array.isArray(listJson.data.list)) first = listJson.data.list[0];
+    if (!first && Array.isArray(listJson.list)) first = listJson.list[0];
+    if (!first && Array.isArray(listJson.records)) first = listJson.records[0];
+  }
+
+  if (!first) {
+    console.log('No announcement records found to delete');
+    throw new Error('No announcement records');
+  }
+
+  // extract id from first announcement record
+  const idCandidates = ['id', 'announceId', 'announcementId', 'announce_id'];
+  let idVal = null;
+  for (const f of idCandidates) if (first && first[f] !== undefined) { idVal = first[f]; break; }
+  if (idVal === null && (typeof first === 'number' || typeof first === 'string')) idVal = first;
+  if (!idVal) {
+    console.log('Could not extract id from first announcement record', first);
+    throw new Error('No id to delete');
+  }
+
+  // delete by id via query string
+  const deleteUrl = `${BASE_URL}/announcement/delete_by_id?id=${encodeURIComponent(idVal)}`;
+  console.log('Deleting announcement by id via URL:', deleteUrl);
+  const dres = await request.get(deleteUrl, {
+    headers: {
+      Authorization: auth,
+      deviceId: DEVICE_ID,
+      lang: 'zh',
+      userType: USER_TYPE,
+      Accept: 'application/json, text/plain, */*'
+    }
+  });
+  const db = await dres.json().catch(async () => ({ raw: await dres.text(), status: dres.status() }));
+  console.log('DELETE', deleteUrl, '=>', db);
+  if (!(db && db.code === 0)) throw new Error('Delete failed: ' + JSON.stringify(db));
 });
