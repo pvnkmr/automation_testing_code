@@ -78,9 +78,17 @@ To run all Baccarat tests:
 
 npm run bacc-all
 
+To run PWA APP:
+
 npm run pwa 
 
+To run tron automate test:
+
 go run cmd/tron.go
+
+To run api automate test :
+
+npm run api-test
 
 ---
 
