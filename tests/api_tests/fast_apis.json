@@ -3,18 +3,27 @@
     "key": "GET http://192.168.40.95:9750/vip-member/announcement/getList?title=&status=&announceType=&startDate=&endDate=&offset=0&limit=10",
     "method": "GET",
     "url": "http://192.168.40.95:9750/vip-member/announcement/getList?title=&status=&announceType=&startDate=&endDate=&offset=0&limit=10",
-    "last_ms": 31,
-    "first_seen": "2026-01-23 10:35:17",
-    "last_seen": "2026-01-23 10:35:17",
+    "last_ms": 20,
+    "first_seen": "2026-01-23 10:49:32",
+    "last_seen": "2026-01-23 10:49:32",
     "count": 1
   },
   {
-    "key": "GET http://192.168.40.95:9750/vip-member/announcement/delete_by_id?id=196",
+    "key": "GET http://192.168.40.95:9750/vip-member/announcement/delete_by_id?id=182",
     "method": "GET",
-    "url": "http://192.168.40.95:9750/vip-member/announcement/delete_by_id?id=196",
-    "last_ms": 32,
-    "first_seen": "2026-01-23 10:35:17",
-    "last_seen": "2026-01-23 10:35:17",
+    "url": "http://192.168.40.95:9750/vip-member/announcement/delete_by_id?id=182",
+    "last_ms": 28,
+    "first_seen": "2026-01-23 10:49:32",
+    "last_seen": "2026-01-23 10:49:32",
+    "count": 1
+  },
+  {
+    "key": "PATCH http://192.168.40.95:9750/vip-member/categories/update?categoryId=130",
+    "method": "PATCH",
+    "url": "http://192.168.40.95:9750/vip-member/categories/update?categoryId=130",
+    "last_ms": 67,
+    "first_seen": "2026-01-23 10:49:32",
+    "last_seen": "2026-01-23 10:49:32",
     "count": 1
   }
 ]
