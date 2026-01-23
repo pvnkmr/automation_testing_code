@@ -20,7 +20,8 @@
     "bacc-tt": "npx playwright test \"./tests/bacc/tt/tt.spec.js\" --headed",
     "bacc-st": "npx playwright test \"./tests/bacc/tiger/small.spec.js\" --headed",
     "bacc-bt": "npx playwright test \"./tests/bacc/tiger/big.spec.js\" --headed",
-    "pwa": "npx playwright test \"./tests/PWA_WSVIP/pwafull.spec.js\" --headed"
+    "pwa": "npx playwright test \"./tests/PWA_WSVIP/pwafull.spec.js\" --headed",
+    "api-test": "npx playwright test \"./tests/api_tests/crud.spec.js\" --reporter=list"
   },
   "keywords": [],
   "author": "",
