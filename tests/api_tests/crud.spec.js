@@ -51,6 +51,8 @@ test("All Baccarat Flow", async ({ request }) => {
   }
 });
 
+// ===== Auth set: subsequent tests reuse the stored Authorization token ===== //
+
 // Test: create a category using an uploaded image.
 // Steps:
 // 1. Ensure we have an auth token (call login if necessary).
@@ -173,10 +175,12 @@ test('Create Category With Image', async ({ request }) => {
   try {
     const body = await res.json();
     console.log('create response', body);
-  } catch (e) {
+    } catch (e) {
     console.log('create response text', await res.text());
   }
 });
+
+// ===== Category creation: upload image then POST /categories ===== //
 
 // Test: update an existing category. This shows a PATCH request with
 // JSON body and how to reuse an uploaded image path similar to the create test.
@@ -270,6 +274,8 @@ test('Update Category', async ({ request }) => {
   }
 });
 
+// ===== Category update: PATCH /categories/update with categoryId query ===== //
+
 test('Delete First Announcement From List', async ({ request }) => {
   if (!auth) {
     const params = new URLSearchParams();
@@ -341,3 +347,5 @@ test('Delete First Announcement From List', async ({ request }) => {
   console.log('DELETE', deleteUrl, '=>', db);
   if (!(db && db.code === 0)) throw new Error('Delete failed: ' + JSON.stringify(db));
 });
+
+// ===== Announcement delete: GET /announcement/getList then GET /announcement/delete_by_id?id=<id> ===== //
