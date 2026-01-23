@@ -18,6 +18,18 @@ const BASE_URL = "http://192.168.40.95:9750/vip-member";
 let auth = '';
 
 // ----- Helper utilities -----
+// A small helper that performs an HTTP request and measures elapsed time (ms).
+// It returns an object { res, ms } where `res` is the Playwright response.
+async function timedRequest(request, method, url, options = {}) {
+  const start = Date.now();
+  let res;
+  if (method === 'GET') res = await request.get(url, options);
+  else if (method === 'POST') res = await request.post(url, options);
+  else res = await request.fetch(url, Object.assign({ method }, options));
+  const ms = Date.now() - start;
+  return { res, ms };
+}
+
 // Ensure we have a valid auth token; perform login if needed and store in `auth`.
 async function ensureAuth(request) {
   if (auth) return auth;
@@ -25,14 +37,15 @@ async function ensureAuth(request) {
   params.append('username', username);
   params.append('password', password);
   params.append('code', OTP);
-  const login = await request.post(`${BASE_URL}/Public/login`, {
+  const { res, ms } = await timedRequest(request, 'POST', `${BASE_URL}/Public/login`, {
     data: params.toString(),
     headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'userType': USER_TYPE, 'deviceId': DEVICE_ID }
   });
-  const lj = await login.json().catch(async () => ({}));
+  const lj = await res.json().catch(async () => ({}));
   if (lj && lj.data && lj.data.token) {
     auth = `${lj.data.tokenType || 'Bearer '} ${lj.data.token}`.trim();
   }
+  console.log('login response time:', ms, 'ms');
   return auth;
 }
 
@@ -48,10 +61,10 @@ function authHeaders(additional = {}) {
 }
 
 // Upload an image buffer to the server and return the storage path string.
-// Tries multipart first, then raw binary as a fallback.
+// Tries multipart first, then raw binary as a fallback. Logs upload time.
 async function uploadImage(request, buffer, fileName = 'scan.png', folder = 'waterbar_category') {
   const uploadUrl = `${BASE_URL}/vip_member/uploadImage?folder=${folder}`;
-  const multipartRes = await request.post(uploadUrl, {
+  const { res: multipartRes, ms: mms } = await timedRequest(request, 'POST', uploadUrl, {
     multipart: {
       files: { name: fileName, mimeType: 'image/png', buffer },
       folder
@@ -60,18 +73,20 @@ async function uploadImage(request, buffer, fileName = 'scan.png', folder = 'wat
   });
   try {
     const upj = await multipartRes.json();
+    console.log('upload (multipart) time:', mms, 'ms');
     if (upj && upj.code === 0 && Array.isArray(upj.data) && upj.data.length > 0) return upj.data[0];
   } catch (e) {
     // ignore parse error and fall through to raw upload
   }
 
   // Fallback: send raw buffer
-  const rawRes = await request.post(uploadUrl, {
+  const { res: rawRes, ms: rms } = await timedRequest(request, 'POST', uploadUrl, {
     data: buffer,
     headers: authHeaders({ 'Content-Type': 'application/octet-stream' })
   });
   try {
     const rawJ = await rawRes.json();
+    console.log('upload (raw) time:', rms, 'ms');
     if (rawJ && rawJ.code === 0 && Array.isArray(rawJ.data) && rawJ.data.length > 0) return rawJ.data[0];
   } catch (e) {
     // ignore
@@ -134,28 +149,18 @@ test('Create Category With Image', async ({ request }) => {
 
   // Create a category using the (uploaded) image path.
   const payload = { name, description, status, image: imageStoragePath, serviceType };
-  const res = await request.post(`${BASE_URL}/categories`, {
+  const { res: createRes, ms: createMs } = await timedRequest(request, 'POST', `${BASE_URL}/categories`, {
     data: JSON.stringify(payload),
-    headers: {
-      Authorization: auth,
-      Accept: 'application/json, text/plain, */*',
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Content-Type': 'application/json',
-      deviceId: DEVICE_ID,
-      lang: 'zh',
-      userType: USER_TYPE,
-      Origin: 'http://192.168.40.95:8090',
-      Referer: 'http://192.168.40.95:8090/'
-    }
+    headers: authHeaders({ 'Accept-Language': 'en-US,en;q=0.9', 'Content-Type': 'application/json', Origin: 'http://192.168.40.95:8090', Referer: 'http://192.168.40.95:8090/' })
   });
 
-  // Log server response to aid debugging when tests fail.
-  console.log('create status', res.status());
+  // Log server response and timing to aid debugging when tests fail.
+  console.log('create status', createRes.status(), 'time', createMs, 'ms');
   try {
-    const body = await res.json();
+    const body = await createRes.json();
     console.log('create response', body);
-    } catch (e) {
-    console.log('create response text', await res.text());
+  } catch (e) {
+    console.log('create response text', await createRes.text());
   }
 });
 
@@ -191,29 +196,19 @@ test('Update Category', async ({ request }) => {
     serviceType: 'LIFESTYLE'
   };
 
-  // PATCH the category endpoint using the query param categoryId
-  const res = await request.fetch(`${BASE_URL}/categories/update?categoryId=${categoryId}`, {
-    method: 'PATCH',
+  // PATCH the category endpoint using the query param categoryId (timed)
+  const updateUrl = `${BASE_URL}/categories/update?categoryId=${categoryId}`;
+  const { res: updateRes, ms: updateMs } = await timedRequest(request, 'PATCH', updateUrl, {
     data: JSON.stringify(payload),
-    headers: {
-      Authorization: auth,
-      Accept: 'application/json, text/plain, */*',
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Content-Type': 'application/json',
-      deviceId: DEVICE_ID,
-      lang: 'zh',
-      userType: USER_TYPE,
-      Origin: 'http://192.168.40.95:8090',
-      Referer: 'http://192.168.40.95:8090/'
-    }
+    headers: authHeaders({ 'Accept-Language': 'en-US,en;q=0.9', 'Content-Type': 'application/json', Origin: 'http://192.168.40.95:8090', Referer: 'http://192.168.40.95:8090/' })
   });
 
-  console.log('update status', res.status());
+  console.log('update status', updateRes.status(), 'time', updateMs, 'ms');
   try {
-    const body = await res.json();
+    const body = await updateRes.json();
     console.log('update response', body);
   } catch (e) {
-    console.log('update response text', await res.text());
+    console.log('update response text', await updateRes.text());
   }
 });
 
@@ -223,8 +218,8 @@ test('Delete First Announcement From List', async ({ request }) => {
   // Ensure authentication and fetch announcement list (first page)
   await ensureAuth(request);
   const listUrl = `${BASE_URL}/announcement/getList?title=&status=&announceType=&startDate=&endDate=&offset=0&limit=10`;
-  const listRes = await request.get(listUrl, { headers: authHeaders({ Origin: 'http://192.168.40.95:8090', Referer: 'http://192.168.40.95:8090/' }) });
-
+  const { res: listRes, ms: listMs } = await timedRequest(request, 'GET', listUrl, { headers: authHeaders({ Origin: 'http://192.168.40.95:8090', Referer: 'http://192.168.40.95:8090/' }) });
+  console.log('announcement list response time:', listMs, 'ms');
   const listJson = await listRes.json().catch(async () => ({ raw: await listRes.text(), status: listRes.status() }));
   console.log('announcement list response', listJson);
 
@@ -256,15 +251,8 @@ test('Delete First Announcement From List', async ({ request }) => {
   // delete by id via query string
   const deleteUrl = `${BASE_URL}/announcement/delete_by_id?id=${encodeURIComponent(idVal)}`;
   console.log('Deleting announcement by id via URL:', deleteUrl);
-  const dres = await request.get(deleteUrl, {
-    headers: {
-      Authorization: auth,
-      deviceId: DEVICE_ID,
-      lang: 'zh',
-      userType: USER_TYPE,
-      Accept: 'application/json, text/plain, */*'
-    }
-  });
+  const { res: dres, ms: deleteMs } = await timedRequest(request, 'GET', deleteUrl, { headers: authHeaders() });
+  console.log('delete response time:', deleteMs, 'ms');
   const db = await dres.json().catch(async () => ({ raw: await dres.text(), status: dres.status() }));
   console.log('DELETE', deleteUrl, '=>', db);
   if (!(db && db.code === 0)) throw new Error('Delete failed: ' + JSON.stringify(db));
