@@ -74,6 +74,10 @@ To run all DT-Baccarat tests:
 
 npm run dt-all
 
+To run all Niu Niu tests:
+
+npm run niu-all
+
 To run all Baccarat tests:
 
 npm run bacc-all
