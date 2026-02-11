@@ -84,7 +84,11 @@ npm run pwa
 
 To run tron automate test:
 
-go run cmd/tron.go
+go run tron/tron.go
+
+To run eth automate test:
+
+go run eth/eth.go
 
 To run api automate test :
 
