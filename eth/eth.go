@@ -126,13 +126,7 @@ func checkBalance(ctx context.Context, addr common.Address, tokenAddr common.Add
 }
 
 // transferERC20 executes the ERC20 transfer using the provided transactor and contract binding.
-func transferERC20(
-	ctx context.Context,
-	auth *bind.TransactOpts,
-	contract common.Address,
-	to common.Address,
-	amount *big.Int,
-) (string, error) {
+func transferERC20(auth *bind.TransactOpts, contract, to common.Address, amount *big.Int) (string, error) {
 	parsedABI, err := abi.JSON(strings.NewReader(erc20ABI))
 	if err != nil {
 		return "", fmt.Errorf("failed to parse ABI: %w", err)
@@ -226,7 +220,7 @@ func executeTransfer(
 	auth.Value = big.NewInt(0)
 	auth.Context = ctx
 
-	txHash, err := transferERC20(ctx, auth, erc20Contract, toAddr, amount)
+	txHash, err := transferERC20(auth, erc20Contract, toAddr, amount)
 	if err != nil {
 		result.Status = "failed"
 		result.Error = err.Error()
