@@ -16,6 +16,7 @@ import (
 	"math/big"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -33,6 +34,9 @@ const ChainID = 11155111
 
 // Minimal ERC20 ABI for transfer
 const erc20ABI = `[{"constant":false,"inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transfer","outputs":[{"name":"","type":"bool"}],"type":"function"}]`
+
+// Path to store per-run results for quick checks
+const ETH_RESULT_FILENAME = "eth_result.json"
 
 type TransferResult struct {
 	From        string `json:"from"`
@@ -162,6 +166,21 @@ func waitForReceipt(ctx context.Context, txHash string) (uint64, error) {
 		}
 	}
 	return 0, fmt.Errorf("timeout waiting for receipt")
+}
+
+// logEthResults writes the latest results to a fixed eth_result.json file for quick inspection
+func logEthResults(results []TransferResult) {
+	data, err := json.MarshalIndent(results, "", "  ")
+	if err != nil {
+		log.Printf("failed to marshal results for eth_result.json: %v", err)
+		return
+	}
+	path := ETH_RESULT_FILENAME
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		log.Printf("failed writing eth_result.json to %s: %v", path, err)
+	} else {
+		fmt.Printf("eth_result.json written to %s\n", path)
+	}
 }
 
 // isTransientError heuristically determines whether an error is temporary and worth retrying.
@@ -379,7 +398,20 @@ func main() {
 
 	results := runScenario(config)
 	printResults(results)
+	logEthResults(results)
 
+	// Persist results to a configurable path (defaults to ./results/results.json)
+	resultsPath := os.Getenv("RESULTS_PATH")
+	if resultsPath == "" {
+		resultsPath = "results/results.json"
+	}
+	if err := os.MkdirAll(filepath.Dir(resultsPath), 0755); err != nil {
+		log.Printf("warning: could not create results dir: %v", err)
+	}
 	data, _ := json.MarshalIndent(results, "", "  ")
-	os.WriteFile("results.json", data, 0644)
+	if err := os.WriteFile(resultsPath, data, 0644); err != nil {
+		log.Printf("failed writing results to %s: %v", resultsPath, err)
+	} else {
+		fmt.Printf("Results written to %s\n", resultsPath)
+	}
 }
